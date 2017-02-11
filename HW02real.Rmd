@@ -7,6 +7,8 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(Deducer)
+
 ```
 
 # Problem 2.29B
@@ -83,4 +85,188 @@ plot(cum.sum.num, type = "l")
 lines(cum.sum.num + num.stand.error, col = "red")
 lines(cum.sum.num - num.stand.error, col = "red")
 ```
-In this case, the lines represent the standard error, and it clear that the accuracy increases as the number of iterations increases.  The following shows the calculation to find the approximate n necessary to get accuracy 
+In this case, the lines represent the standard error, and it clear that the accuracy increases as the number of iterations increases.  The following shows the calculation to find the approximate n necessary to get accuracy
+$$
+\begin{aligned}
+2se &<= .001 \\
+2(\frac{\hat\sigma}{\sqrt n}) & <= .001 \\
+2000(\hat\sigma) &<= \sqrt n \\
+4e^{-06}\hat\sigma &<= n
+\end{aligned}
+$$
+
+# Problem 3.2
+
+## Part A
+We will continue under the assumption that $x = 1$ and $\theta_{0}$.  For the accept-reject algorithm, we will use a cauchy candidate, as desired.  So $g(\theta) = \frac{1}{\pi(1+\theta^2)}$, and we know that by the algorithm, with a $U \sim unif(0,1)$, if $U < \frac{g(Y|x)}{Mg(Y)}$, we accept the proposed $Y \sim g$  We need to find $M$.
+```{r}
+post.func = function(t){
+  x = 1
+  1/(1+t*t)*exp(-(x-t)^2/2)
+}
+test.dnorm = function(x){
+  
+}
+c = integrate(post.func,-Inf,Inf)$value
+m = pi/c
+```
+To do this, we recognize that $\frac{g(Y|x)}{Mg(Y)} = \frac{\pi}{CM}\exp{-\frac{1}{2}(x-y)^2}$, with $CM = C\sup\frac{g(\theta|x)}{g(\theta)} = C sup \frac{\pi}{C}\exp{-\frac{1}{2}(x-\theta)^2}$, which is $\pi$ and occurs when $\theta = x$.  So clearly $M = \frac{\pi}{C}$, which we can calculate to be `r c`.  Thus $M =$ `r m` given our predetermined parameters, and it is important to note that under these conditions, that the probability of acceptance is $\frac{1}{M} = \frac{C}{\pi} = 0.1088$
+
+I will do this under multiple different sample sizes to compare the acceptance probability
+
+```{r, cache = TRUE}
+N = seq(1000,100000,by = 500)
+x = 1
+est = rep(NA,length(N))
+acc = rep(NA,length(N))
+for(i in 1:length(N)){
+  n = N[i]
+  y = rcauchy(n)
+  u = runif(n,0,1)
+  acceptance = (u < exp(-(x-y)^2/2))
+  acc[i] = mean(acceptance)
+  est[i] = mean(y[acceptance])
+}
+plot(N,acc, type = "l")
+abline(h = (1/m), col = "red")
+plot(N,est,type = "l")
+
+M <- seq(1000,100000,by=1000) # number of simulated values
+x <- 3 # observed data
+ar.es <- rep(NA,length(M))
+fr.acc <- rep(NA,length(M))
+
+for(i in 1:length(M)){
+  m <- M[i]
+  y <- rcauchy(m) # simulate m standard cauchys
+  u <- runif(m,0,1) # simulate m uniform(0,1) RVs
+  accept <- (u<exp(-(x-y)^2/2)) # test if we accept or not
+  ar.es[i] <- mean(y[accept])
+  fr.acc[i] <- mean(accept)
+}
+```
+The sample sizes is a nice touch, and I should figure out how to do it. I'm still not sure why mine isn't working.
+
+## Part B
+This one will be on my own.
+
+# Problem 3.3
+
+## Part A
+Let $Z \sim N(0,1)$.  Ultimately, we will want to use monte carlo sums based on indicator variables, but beforew we can do that, we will go over some helpful preliminary results.  We want to calculate $\Pr(Z > 2.5)$, which is $\int_{2.5}^{\infty}f(z)dz = 1 - \Phi(2.5) = I(-2.5) = \int_{-\infty}^{-2.5}f(z)dz$.  We can do this because of the symmetry o the normal distribution.  Here, we will introduce the Monte Carlo sums $\hat\Phi(-2.5) = \frac{1}{n}\sum_{i = 1}^n1_{z_i \leq -2.5}$. Now this is the summation of Bernoulli random variables, which means that we can leverage to find apropriate $n$ using the exact variance of the estimator, which is $var(\hat\Phi) = \frac{\Phi(-2.5)(1-\Phi(-2.5))}{n}$.  We will use this to find the required sample size for the accuracy to be less than .001.
+$$
+\begin{aligned}
+2\text{qnorm(.975)}\sqrt \frac{\Phi(-2.5)(1-\Phi(-2.5))}{n}  &<= .001 \\
+\sqrt \frac{\Phi(-2.5)(1-\Phi(-2.5))}{n}  &<= .000255 \\
+ \frac{\Phi(-2.5)(1-\Phi(-2.5))}{(.000255)^2}  &<= n  \\
+\end{aligned}
+$$
+```{r}
+req.n = ceiling(pnorm(-2.5)*(1-pnorm(-2.5)) / (.000255)^2)
+```
+This means that it would require roughly 95000 samples for that level of accuracy, which is a lot.
+
+```{r, cache = TRUE}
+z = rnorm(req.n)
+phi.est = (1/n)*sum(z <= -2.5)
+abs.diff = abs(pnorm(-2.5)-phi.est)
+```
+
+This has a very small difference `r abs.diff`.  Our sample size estimate in fact is probably too conservative because this is a very smal difference.  I will test to see if on average this is too conservative
+
+```{r, cache = TRUE}
+diff = rep(NA,10000)
+for(i in 1:10000){
+  z = rnorm(req.n)
+  phi.est = (1/req.n)*sum(z <= -2.5)
+  abs.diff = abs(pnorm(-2.5)-phi.est)
+  if(abs.diff <= .001){
+    diff[i] = 1
+  }
+  else{
+    diff[i] = 0
+}
+}
+mean(diff)
+```
+According to this, our estimated required sample size is probably too conservative.
+
+## Part B
+We now do an almost identical process with a gamma distribution.
+$$
+\begin{aligned}
+\text{qnorm(.975)}\sqrt \frac{\Pr(X>5.3)(1-\Pr(X>5.3))}{n}  &<= .001 \\
+\sqrt \frac{\Pr(X>5.3)(1-\Pr(X>5.3))}{n}  &<= .00051 \\
+ \ \frac{\Pr(X>5.3)(1-\Pr(X>5.3))}{.00051^2}  &<= n \\
+\end{aligned}
+$$
+```{r}
+gam.req.n = ceiling(pgamma(5.3,1,1)*(1-pgamma(5.3,1,1))/(.00051^2))
+```
+According to this, the required sample size would be approximately 19100.
+```{r, cache = TRUE}
+diff = rep(NA,10000)
+for(i in 1:10000){
+  gam = rgamma(gam.req.n,1,1)
+  gam.est = (1/gam.req.n)*sum(gam > 5.3)
+  abs.diff = abs((1-pgamma(5.3,1,1))-gam.est)
+  if(abs.diff <= .001){
+    diff[i] = 1
+  }
+  else{
+    diff[i] = 0
+}
+}
+mean(diff)
+```
+We can see by the mean that we are getting about what we expected and planned.
+
+# Problem 3.7
+We use both the multinomal and two-binomial model to examine the association between disinfectant and surgical success rates from Joseph Lister's experiment.
+```{r}
+succes = c(34,19)
+failure = c(6,16)
+list.data = rbind(succ,fail)
+colnames(list.data) = c("dis","notdis")
+n = sum(list.data)
+N = 50000
+
+# I will start with the two-binomial model
+n1 = sum(list.data$dis)
+n2 = sum(list.data$notdis)
+two.binlam = rep(0,N)
+for(i in 1:N){
+  p = runif(1,0,1)
+  k1 = rbinom(1,n1,p)
+  k2 = rbinom(1,n2,p)
+  null.data = data.frame(rbind(c(k1,n1-k1),c(k2,n2-k2)))
+  two.binlam[i] = likelihood.test(null.data)$statistic
+}
+
+# I will now go over the multinomial model
+multi.lam = rep(0,N)
+for(i in 1:N){
+  p = runif(2,0,1)
+  vec.p = c(p[1]*p[2],p[1]*(1-p[2]),(1-p[1])*p[2],(1-p[1])*(1-p[2]))
+  k = rmultinorm(1,n,vec.p)
+  null.data = data.frame(rbind(k[1:2],k[3:4]))
+  multi.lam = likelihood.test(null.data)$statistic
+}
+
+order.bin = sort(two.binlam)
+order.mult = sort(multi.lam)
+```
+# Problem 3.10
+A lot more involved.  Going to have to work on this one a lot
+
+# Problem 3.18
+Something on my own
+
+# Problem 3.19
+Something on my own
+
+# Problem 2
+Pretty involved again
+
+# Problem 3
+Proofy stuff
