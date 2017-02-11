@@ -252,10 +252,12 @@ for(i in 1:N){
   null.data = data.frame(rbind(k[1:2],k[3:4]))
   multi.lam = likelihood.test(null.data)$statistic
 }
-
-order.bin = sort(two.binlam)
-order.mult = sort(multi.lam)
+quantile(two.binlam,c(.9,.95,.99))
+quantile(multi.lam, c(.9,.95,.99))
+chi = c(qchisp(.9,df = 1),qchisp(.95,df = 1),qchisp(.99,df = 1))
 ```
+We can reject the null hypothesis and conclude that the disinfectant does have some bearing on the surgical success of operations.
+
 # Problem 3.10
 A lot more involved.  Going to have to work on this one a lot
 
