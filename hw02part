@@ -1,0 +1,111 @@
+I will be using the same distributions in this case, but I will be using the scheme and estimator discussed in the text.
+```{r, cache = TRUE}
+nreps = seq(50,10000,by = 100)
+book.est = matrix(NA,nrow = 1000,ncol = length(nreps))
+for(i in 1:1000){
+  for(j in 1:length(nreps)){
+    samps = NULL
+    n = nreps[j]
+    while(length(samps) < nreps[j]){
+    y = rcauchy(n,3,1)
+    w = (dnorm(y,3,1) / dcauchy(y,3,1)) / sum((dnorm(y,3,1) / dcauchy(y,3,1)))
+    draw = rbinom(n,1,w)
+    if(draw == 1){
+      samps = c(samps,y)
+      acc = acc + 1
+    }
+    tot = tot + 1
+    }
+    book.est[i,j] = mean(samps)
+  }
+}
+
+par(mfrow = c(1,2))
+plot(book.est[,1],type = "l" , col = "black")
+lines(import.est[,1],type= "l" , col = "red")
+
+plot(book.est[,10],type = "l" , col = "black")
+lines(import.est[,10],type= "l" , col = "red")
+
+plot(book.est[,15],type = "l" , col = "black")
+lines(import.est[,5],type= "l" , col = "red")
+```
+It's clear that these values are very similar assymptotically. 
+
+
+# Problem 2
+```{r, cache = TRUE}
+N = seq(50,10000, by = 50)
+nu = c(1,5,10,20)
+est.mean = est.var = matrix(NA,ncol = length(nu),nrow = length(N))
+
+for(i in 1:length(nu)){
+  nu.0 = nu[i]
+  
+  for(j in 1:length(N)){
+    n = N[j]
+    x = rt(n,nu.0)
+    est.mean[j,i] = sum(x *dnorm(x,0,1) / dt(x,nu.0)) / n
+    est.var[j,i] = sum((x-est.mean[j,i])^2 * dnorm(x,0,1) / dt(x,nu.0)) / n
+  }
+}
+
+par(mfrow = c(1,4))
+plot(est.mean[,1], main = paste(expression(nu),"= 1"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,2], main = paste(expression(nu),"= 5"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,3], main = paste(expression(nu),"= 10"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,4], main = paste(expression(nu),"= 20"), ylab = "E(X)")
+abline(h = 0, col = "red")
+
+plot(est.var[,1], main = paste(expression(nu),"= 1"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,2], main = paste(expression(nu),"= 5"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,3], main = paste(expression(nu),"= 10"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,4], main = paste(expression(nu),"= 20"), ylab = "var(X)")
+abline(h = 1, col = "red")
+```
+I now repeat the previous exercise with a t-distribution as the target and drawing from a normal distribution.
+
+```{r, cache = TRUE}
+N = seq(50,10000, by = 50)
+nu = c(1,5,10,20)
+est.mean = est.var = matrix(NA,ncol = length(nu),nrow = length(N))
+
+for(i in 1:length(nu)){
+  nu.0 = nu[i]
+  
+  for(j in 1:length(N)){
+    n = N[j]
+    x = rnrom(n,0,1)
+    est.mean[j,i] = sum(x *dnorm(x,0,1) / dt(x,nu.0)) / n
+    est.var[j,i] = sum((x-est.mean[j,i])^2 * dnorm(x,0,1) / dt(x,nu.0)) / n
+  }
+}
+
+par(mfrow = c(1,4))
+plot(est.mean[,1], main = paste(expression(nu),"= 1"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,2], main = paste(expression(nu),"= 5"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,3], main = paste(expression(nu),"= 10"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,4], main = paste(expression(nu),"= 20"), ylab = "E(X)")
+abline(h = 0, col = "red")
+
+plot(est.var[,1], main = paste(expression(nu),"= 1"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,2], main = paste(expression(nu),"= 5"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,3], main = paste(expression(nu),"= 10"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,4], main = paste(expression(nu),"= 20"), ylab = "var(X)")
+abline(h = 1, col = "red")
+
+```
+
+This doesn't work well because the t-istribution is heavier tailed than the normal distribution.  We generaly want to draw from a heavier tailed distribution.

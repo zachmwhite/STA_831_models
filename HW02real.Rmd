@@ -8,7 +8,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(Deducer)
-
+library(truncnorm)
 ```
 
 # Problem 2.29B
@@ -110,7 +110,7 @@ test.dnorm = function(x){
 c = integrate(post.func,-Inf,Inf)$value
 m = pi/c
 ```
-To do this, we recognize that $\frac{g(Y|x)}{Mg(Y)} = \frac{\pi}{CM}\exp{-\frac{1}{2}(x-y)^2}$, with $CM = C\sup\frac{g(\theta|x)}{g(\theta)} = C sup \frac{\pi}{C}\exp{-\frac{1}{2}(x-\theta)^2}$, which is $\pi$ and occurs when $\theta = x$.  So clearly $M = \frac{\pi}{C}$, which we can calculate to be `r c`.  Thus $M =$ `r m` given our predetermined parameters, and it is important to note that under these conditions, that the probability of acceptance is $\frac{1}{M} = \frac{C}{\pi} = 0.1088$
+To do this, we recognize that $\frac{g(Y|x)}{Mg(Y)} = \frac{\pi}{CM}\exp{-\frac{1}{2}(x-y)^2}$, with $CM = C\sup\frac{g(\theta|x)}{g(\theta)} = C sup \frac{\pi}{C}\exp{-\frac{1}{2}(x-\theta)^2}$, which is $\pi$ and occurs when $\theta = x$.  So clearly $M = \frac{\pi}{C}$, which we can calculate to be `r c`.  Thus $M =$ `r m` given our predetermined parameters, and it is important to note that under these conditions, that the probability of acceptance is $\frac{1}{M} = \frac{C}{\pi} = 0.4156$
 
 I will do this under multiple different sample sizes to compare the acceptance probability
 
@@ -145,7 +145,7 @@ for(i in 1:length(M)){
   fr.acc[i] <- mean(accept)
 }
 ```
-The sample sizes is a nice touch, and I should figure out how to do it. I'm still not sure why mine isn't working.
+
 
 ## Part B
 This one will be on my own.
@@ -172,7 +172,7 @@ phi.est = (1/n)*sum(z <= -2.5)
 abs.diff = abs(pnorm(-2.5)-phi.est)
 ```
 
-This has a very small difference `r abs.diff`.  Our sample size estimate in fact is probably too conservative because this is a very smal difference.  I will test to see if on average this is too conservative
+This has a very small difference .00051.  Our sample size estimate in fact is probably too conservative because this is a very smal difference.  I will test to see if on average this is too conservative
 
 ```{r, cache = TRUE}
 diff = rep(NA,10000)
@@ -224,12 +224,13 @@ We can see by the mean that we are getting about what we expected and planned.
 # Problem 3.7
 We use both the multinomal and two-binomial model to examine the association between disinfectant and surgical success rates from Joseph Lister's experiment.
 ```{r}
-succes = c(34,19)
+success = c(34,19)
 failure = c(6,16)
-list.data = rbind(succ,fail)
+list.data = rbind(success,failure)
 colnames(list.data) = c("dis","notdis")
 n = sum(list.data)
 N = 50000
+list.data = as.data.frame(list.data)
 
 # I will start with the two-binomial model
 n1 = sum(list.data$dis)
@@ -248,27 +249,173 @@ multi.lam = rep(0,N)
 for(i in 1:N){
   p = runif(2,0,1)
   vec.p = c(p[1]*p[2],p[1]*(1-p[2]),(1-p[1])*p[2],(1-p[1])*(1-p[2]))
-  k = rmultinorm(1,n,vec.p)
+  k = rmultinom(1,n,vec.p)
   null.data = data.frame(rbind(k[1:2],k[3:4]))
   multi.lam = likelihood.test(null.data)$statistic
 }
 quantile(two.binlam,c(.9,.95,.99))
 quantile(multi.lam, c(.9,.95,.99))
-chi = c(qchisp(.9,df = 1),qchisp(.95,df = 1),qchisp(.99,df = 1))
+chi = c(qchisq(.9,df = 1),qchisq(.95,df = 1),qchisq(.99,df = 1))
 ```
 We can reject the null hypothesis and conclude that the disinfectant does have some bearing on the surgical success of operations.
 
 # Problem 3.10
-A lot more involved.  Going to have to work on this one a lot
+In this problem, we will analyze the performance of the regular Monte Carlo estimator with that of another estimator based on an optimal choice of "instrumental distribution" described in the text. The regular Monte Carlo estimator is $\int_1^2\frac{e^{-x^2/2}}{\sqrt {2\pi}} = \Phi(2) - \Phi(1)$.
+
+```{r}
+N = seq(10,15000, by = 10)
+mc.est = rep(NA,length(N))
+for(i in 1:length(N)){
+  n = N[i]
+  x = rnorm(n,0,1)
+  mc.est[i] = sum((x>=1) & (x<=2))/n
+}
+real = pnorm(2,0,1) - pnorm(1,0,1)
+plot(mc.est, type = "l")
+abline(h = real, col = "red")
+```
+
+I now use the other estimator $\frac{\sum_{j = 1}^m h(x_j) f(x_j)/g(x_j)}{\sum_{j = 1}^m f(x_j)/g(x_j)}  = \frac{\sum_{j = 1}^m h(x_j) |h(x_j)|^{-1}}{\sum_{j = 1}^m|h(x_j)|^{-1}}$
+```{r}
+h <- function(x){return(exp(-x^2/2)/sqrt(2*pi))}
+oth.est = rep(NA,length(N))
+for(i in 1:length(N)){
+  n = N[i]
+  x = rtruncnorm(n,a=1,b=2,0,1)
+  oth.est[i] = sum(h(x)*abs(h(x))^(-1)) / sum(abs(h(x))^(-1))
+}
+```
+
+
 
 # Problem 3.18
-Something on my own
+Importance sampling
 
-# Problem 3.19
-Something on my own
+To analyze the similarities between this method and importance sampling, I will draw normal draws from a cauchy proposal in both situations.
+```{r, cache = TRUE}
+curve(dnorm(x,3,1), xlim = c(0,6))
+curve(dcauchy(x,3,1), col = "red", add = TRUE)
+
+
+nreps = seq(50,1000,by = 100)
+import.est = matrix(0,nrow = 10000,ncol = length(nreps))
+for(j in 1:100){
+  for(i in 1:length(nreps)){
+    n = nreps[i]
+    y = rcauchy(n,3,1)
+    w = dnorm(y,3,1) / dcauchy(y,3,1)
+    integrand = y * w 
+    import.est[j,i] = sum(integrand) / n 
+  }
+}
+```
+
+I will be using the same distributions in this case, but I will be using the scheme and estimator discussed in the text.
+```{r, cache = TRUE}
+nreps = seq(50,1000,by = 100)
+book.est = rep(NA, length(nreps))
+  for(j in 1:length(nreps)){
+    samps = NULL
+    n = nreps[j]
+    while(length(samps) < nreps[j]){
+    y = rcauchy(n,3,1)
+    w = (dnorm(y,3,1) / dcauchy(y,3,1)) / sum((dnorm(y,3,1) / dcauchy(y,3,1)))
+    draw = rbinom(n,1,w)
+    samps = c(samps,y[draw])
+    }
+    book.est[j] = mean(samps)
+  }
+
+par(mfrow = c(1,2))
+#plot(book.est[1],type = "l" , col = "black")
+plot(import.est[,1],type= "l" , col = "red")
+abline(h = book.est[1])
+
+#plot(book.est[10],type = "l" , col = "black")
+plot(import.est[,10],type= "l" , col = "red")
+abline(h= book.est[10])
+
+#plot(book.est[15],type = "l" , col = "black")
+#plot(import.est[,12],type= "l" , col = "red")
+#abline(h = book.est[12])
+```
+It's clear that these values are very similar assymptotically. 
+
 
 # Problem 2
-Pretty involved again
+```{r, cache = TRUE}
+N = seq(50,10000, by = 50)
+nu = c(1,5,10,20)
+est.mean = est.var = matrix(NA,ncol = length(nu),nrow = length(N))
 
-# Problem 3
-Proofy stuff
+for(i in 1:length(nu)){
+  nu.0 = nu[i]
+  
+  for(j in 1:length(N)){
+    n = N[j]
+    x = rt(n,nu.0)
+    est.mean[j,i] = sum(x *dnorm(x,0,1) / dt(x,nu.0)) / n
+    est.var[j,i] = sum((x-est.mean[j,i])^2 * dnorm(x,0,1) / dt(x,nu.0)) / n
+  }
+}
+
+par(mfrow = c(1,4))
+plot(est.mean[,1], main = paste(expression(nu),"= 1"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,2], main = paste(expression(nu),"= 5"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,3], main = paste(expression(nu),"= 10"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,4], main = paste(expression(nu),"= 20"), ylab = "E(X)")
+abline(h = 0, col = "red")
+
+plot(est.var[,1], main = paste(expression(nu),"= 1"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,2], main = paste(expression(nu),"= 5"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,3], main = paste(expression(nu),"= 10"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,4], main = paste(expression(nu),"= 20"), ylab = "var(X)")
+abline(h = 1, col = "red")
+```
+I now repeat the previous exercise with a t-distribution as the target and drawing from a normal distribution.
+
+```{r, cache = TRUE}
+N = seq(50,10000, by = 50)
+nu = c(1,5,10,20)
+est.mean = est.var = matrix(NA,ncol = length(nu),nrow = length(N))
+
+for(i in 1:length(nu)){
+  nu.0 = nu[i]
+  
+  for(j in 1:length(N)){
+    n = N[j]
+    x = rnorm(n,0,1)
+    est.mean[j,i] = sum(x *dnorm(x,0,1) / dt(x,nu.0)) / n
+    est.var[j,i] = sum((x-est.mean[j,i])^2 * dnorm(x,0,1) / dt(x,nu.0)) / n
+  }
+}
+
+par(mfrow = c(1,4))
+plot(est.mean[,1], main = paste(expression(nu),"= 1"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,2], main = paste(expression(nu),"= 5"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,3], main = paste(expression(nu),"= 10"), ylab = "E(X)")
+abline(h = 0, col = "red")
+plot(est.mean[,4], main = paste(expression(nu),"= 20"), ylab = "E(X)")
+abline(h = 0, col = "red")
+
+plot(est.var[,1], main = paste(expression(nu),"= 1"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,2], main = paste(expression(nu),"= 5"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,3], main = paste(expression(nu),"= 10"), ylab = "var(X)")
+abline(h = 1, col = "red")
+plot(est.var[,4], main = paste(expression(nu),"= 20"), ylab = "var(X)")
+abline(h = 1, col = "red")
+
+```
+
+This doesn't work well because the t-istribution is heavier tailed than the normal distribution.  We generaly want to draw from a heavier tailed distribution.
+
