@@ -1,0 +1,82 @@
+---
+title: "HW5"
+author: "Zach White"
+date: "March 29, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 5
+
+## Part b
+```{r}
+n = 12
+d = 2
+
+V = rep(0,d)
+N = matrix(0,d,d)
+B = matrix(0,d,d)
+for(i in 1:d){
+  V[i] = rchisq(1,n-i+1)
+  for(j in 1:d){
+    N[i,j] = rnorm(1)
+    if(i == j){
+      B[i,j] = V[i] + sum(N[1:i-1,i]^2) 
+      B[j,i] = B[i,j]
+    }
+    if(j > i){
+      B[i,j] = N[i,j]*sqrt(V[i]) + sum(N[1:i-1,i]*N[1:i-1,j])
+      B[j,i] = B[i,j]
+    }
+  }
+}
+B
+```
+Thus, under this scheme, B would be a simulated draw from the Wishart(2,12).
+
+## Part b
+```{r, eval = FALSE}
+y1 = c(1,1,-1,-1,2,2,-2,-2,NA,NA,NA,NA)
+y1.obs = y1[!is.na(y1)]
+y2 = c(1,-1,1,-1,NA,NA,NA,NA,2,2,-2,-2)
+y2.obs = y2[!is.na(y2)]
+y1.comp = y1[1:4]
+y2.comp = y2[1:4]
+
+data = cbind(y1,y2)
+
+data.complete = cbind(y1.comp,y2.comp)
+S.complete = t(data.complete) %*% data.complete
+n.comp = 4
+
+for(i in 1:1000){
+# Steps 
+## Sample Sigma using our previous function
+  sigm.comp = rWishart(1,n.comp,S.complete)
+## Calculate rho,sigma1,sigma2
+  rho = sigm.comp[1,2] / sqrt(sigm.comp[1,1]*sigm.comp[2,2])
+
+## Impute missing data
+  y.mis.1 = NULL
+  for(i in 9:12){
+    y.mis.1 = c(y.mis.1,rnorm(1,sigm.comp[1,2] / (sigm.comp[1,1] * (data[i,2])),sd = sqrt(sigm.comp[1,1] - sigm.comp[1,2]^2 / sigm.comp[2,2])))
+  
+    y.mis.2 = NULL
+    for(i in 5:8){
+      y.mis.2 = c(y.mis.2, rnorm(1,sigm.comp[1,2] / (sigm.comp[2,2] * (data[i,1])),sd = sqrt(sigm.comp[2,2] - sigm.comp[1,2]^2 / sigm.comp[1,1])))
+    }
+  }
+  full.data = data
+  full.data[5:8,2] = y.mis.2
+  full.dat[9:12,1] = y.mis.1
+ ## Evaluate the weights
+  
+}  
+```
+I couldn't finish the weights part.  If I would have continued.  I would have evaluated the data under the instrumental and target distributions, and then estimate $\rho$ using the weighted values.
+
+## Part D
+I couldn't finish this part.

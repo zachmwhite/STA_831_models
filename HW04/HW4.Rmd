@@ -8,6 +8,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(numDeriv)
 ```
 
 # Problem 5.20
@@ -110,3 +111,97 @@ lines(1:7,chain)
 ```
 
 Both of these methods converge very quickly.  Even under the Monte Carlo method, our converges very quickly.  I assume it is partly because of the number of iterations we choose.  If that were smaller, the variance would be larger, and convergence would be slower.
+
+# Problem 2
+
+## Part B
+```{r}
+y1 = c(125,18,20,34)
+y2 = c(14,0,1,5)
+
+y1.like = function(theta.y){
+  (2+theta.y)^(125) * (1-theta.y)^(38) * theta.y^34
+}
+log.y1 = function(theta.y){
+  -log(y1.like(theta.y))
+}
+y2.like = function(theta.y2){
+  (2+theta.y2)^(14) * (1-theta.y2)^(1) * theta.y2^(5)
+}
+log.y2 = function(theta.y2){
+  -log(y2.like(theta.y2))
+}
+#xs = seq(0,1,length = 1000)
+#plot(xs,y2.like(xs))
+
+
+# summary(ms( ~ log.y1(theta.y2), start = c(theta.y2 = c(.1,.2,.3,.4,.6,.8))))
+# optim(.1,log.y2)
+# optim(.1,y1.like)
+# summary(ms( ˜ ng(th),start=c(th=0.5))) # R users: optim(0.5,ng)
+
+newton<-function(error=1e-7, theta = .1)
+{
+  #theta<- 0.2
+  k<-1
+  while(k<=10000)
+  {
+    k<-k+1
+    theta[k]<-theta[k-1]-((125/(2+theta[k-1])-38/(1-theta[k-1])+34/theta[k-1]))/
+      (-125*((2+theta[k-1])^(-2))-38*((1-theta[k-1])^(-2))-34*((theta[k-1])^(-2)))
+    if(abs(theta[k]-theta[k-1])<error) 
+      break
+  }
+ cat("theta",theta)
+ list(theta[k],k)
+}
+newton(theta = .1)
+newton(theta = .2)
+newton(theta = .3)
+newton(theta = .4)
+newton(theta = .6)
+newton(theta = .8)
+xs = seq(0,1,length = 1000)
+plot(xs,y1.like(xs))
+```
+
+The starting values that produce the smallest number of iterations is .4 and .6.  The other starting values converge around 6 or 7 iterations.  
+
+## Part C
+```{r}
+newton2<-function(error=1e-7, theta = .1)
+{
+  #theta<- 0.2
+  k<-1
+  while(k<=10000)
+  {
+    k<-k+1
+    theta[k]<-theta[k-1]-((14/(2+theta[k-1])-1/(1-theta[k-1])+5/theta[k-1]))/
+      (-14*((2+theta[k-1])^(-2))-1*((1-theta[k-1])^(-2))-5*((theta[k-1])^(-2)))
+    if(abs(theta[k]-theta[k-1])<error) 
+      break
+  }
+ cat("theta",theta)
+ list(theta[k],k)
+}
+newton2(theta = .1)
+newton2(theta = .2)
+#newton2(theta = .3)
+newton2(theta = .4)
+#newton2(theta = .6)
+newton2(theta = .8)
+```
+
+Under this second likelihood, the convergence is generally slower.  And newton raphson doesn't actually occur with the starting values .3 and .6.
+
+## Part D
+```{r}
+xs = seq(0,1,length = 1000)
+plot(xs,y1.like(xs))
+```
+
+## Part E
+```{r}
+xs = seq(0,1,length = 1000)
+plot(xs,y1.like(xs))
+```
